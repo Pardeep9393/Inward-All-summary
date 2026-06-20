@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inward Vehicle Dashboard</title>
+<style>
+  :root{
+    --ink:#1a1f1c;
+    --paper:#f4f2ec;
+    --panel:#ffffff;
+    --line:#dcd8c9;
+    --line-bright:#c4bfa9;
+    --accent:#b5651d;
+    --accent-bg:#f2e3d0;
+    --green:#2f7a4f;
+    --green-bg:#e3f0e6;
+    --amber:#a87a17;
+    --amber-bg:#f7ecd2;
+    --red:#b3402c;
+    --red-bg:#fbe6e1;
+    --muted:#6b6a5e;
+    --mono:'IBM Plex Mono','Courier New',monospace;
+    --sans:'Inter','Segoe UI',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  header{
+    border-bottom:2px solid var(--ink);
+    padding:18px 24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+    background:var(--paper);
+    position:sticky;
+    top:0;
+    z-index:50;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand .mark{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.1em;
+    background:var(--ink);
+    color:var(--paper);
+    padding:3px 7px;
+    border-radius:3px;
+  }
+  .brand h1{font-size:19px;font-weight:700;margin:0;letter-spacing:-0.01em;}
+  .brand .sub{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px;}
+  .status-cluster{display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:11.5px;color:var(--muted);}
+  .pulse-dot{
+    width:7px;height:7px;border-radius:50%;background:var(--green);
+    display:inline-block;margin-right:6px;animation:pulse 2s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(47,122,79,0.45);}
+    70%{box-shadow:0 0 0 6px rgba(47,122,79,0);}
+    100%{box-shadow:0 0 0 0 rgba(47,122,79,0);}
+  }
+  #refreshBtn{
+    font-family:var(--mono);font-size:11.5px;background:var(--ink);color:var(--paper);
+    border:none;padding:7px 12px;border-radius:4px;cursor:pointer;letter-spacing:0.02em;
+  }
+  #refreshBtn:hover{background:var(--accent);}
+  #refreshBtn:disabled{opacity:0.5;cursor:wait;}
+
+  main{max-width:1480px;margin:0 auto;padding:20px 24px 60px;}
+
+  .error-banner{
+    background:var(--red-bg);color:var(--red);border:1px solid var(--red);
+    border-radius:6px;padding:12px 14px;font-size:13px;margin-bottom:16px;display:none;
+  }
+  .error-banner.show{display:block;}
+
+  /* ---------- Summary strip ---------- */
+  .summary-strip{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:20px;
+  }
+  .summary-cell{background:var(--panel);padding:14px 16px;}
+  .summary-cell .label{
+    font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.07em;
+    color:var(--muted);margin-bottom:6px;white-space:nowrap;
+  }
+  .summary-cell .value{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;}
+  .summary-cell .subvalue{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:4px;}
+  .summary-cell.complete .value{color:var(--green);}
+  .summary-cell.pending .value{color:var(--amber);}
+  .summary-cell.critical .value{color:var(--red);}
+
+  /* ---------- Ageing buckets ---------- */
+  .ageing-strip{
+    display:flex;
+    gap:10px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+  }
+  .ageing-chip{
+    flex:1;
+    min-width:130px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px 14px;
+    cursor:pointer;
+    transition:border-color 0.15s;
+  }
+  .ageing-chip:hover{border-color:var(--line-bright);}
+  .ageing-chip.active{border-color:var(--ink);border-width:1.5px;}
+  .ageing-chip .alabel{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;}
+  .ageing-chip .acount{font-size:20px;font-weight:700;margin-top:4px;}
+  .ageing-chip[data-bucket="0-1"] .acount{color:var(--green);}
+  .ageing-chip[data-bucket="2-3"] .acount{color:var(--amber);}
+  .ageing-chip[data-bucket="4+"] .acount{color:var(--red);}
+
+  /* ---------- Filters ---------- */
+  .filter-bar{
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:14px 16px;margin-bottom:18px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;
+  }
+  .filter-group{display:flex;flex-direction:column;gap:5px;min-width:150px;flex:1;}
+  .filter-group label{
+    font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);
+  }
+  .filter-group select,.filter-group input{
+    font-family:var(--sans);font-size:13px;padding:7px 9px;border:1px solid var(--line);
+    border-radius:5px;background:var(--paper);color:var(--ink);
+  }
+  .filter-group select:focus,.filter-group input:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent);}
+  .filter-clear{
+    font-family:var(--mono);font-size:11px;background:transparent;border:1px solid var(--line);
+    color:var(--muted);padding:8px 12px;border-radius:5px;cursor:pointer;white-space:nowrap;height:33px;
+  }
+  .filter-clear:hover{border-color:var(--ink);color:var(--ink);}
+
+  /* ---------- Tabs ---------- */
+  .view-tabs{display:flex;gap:6px;margin-bottom:14px;}
+  .view-tabs button{
+    font-family:var(--mono);font-size:11.5px;padding:8px 16px;background:var(--panel);
+    border:1px solid var(--line);border-radius:6px;color:var(--muted);cursor:pointer;letter-spacing:0.02em;
+  }
+  .view-tabs button.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+
+  /* ---------- Table ---------- */
+  .table-wrap{
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:auto;max-height:62vh;
+  }
+  table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:1300px;}
+  thead th{
+    position:sticky;top:0;background:var(--ink);color:var(--paper);text-align:left;padding:10px 12px;
+    font-family:var(--mono);font-weight:600;font-size:10.5px;text-transform:uppercase;
+    letter-spacing:0.05em;white-space:nowrap;z-index:2;cursor:pointer;
+  }
+  thead th:hover{background:var(--accent);}
+  tbody td{padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  tbody tr:hover{background:var(--accent-bg);}
+  tbody tr:nth-child(even){background:rgba(0,0,0,0.015);}
+  tbody tr:nth-child(even):hover{background:var(--accent-bg);}
+
+  .badge{
+    display:inline-block;padding:2px 9px;border-radius:99px;font-family:var(--mono);
+    font-size:10.5px;font-weight:600;letter-spacing:0.02em;
+  }
+  .badge.complete{background:var(--green-bg);color:var(--green);}
+  .badge.pending{background:var(--amber-bg);color:var(--amber);}
+  .badge.ageing-critical{background:var(--red-bg);color:var(--red);}
+
+  .empty-row td{text-align:center;padding:50px 12px;color:var(--muted);font-family:var(--mono);font-size:13px;}
+
+  .table-footer{
+    font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:10px;
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;
+  }
+
+  .table-wrap::-webkit-scrollbar{height:9px;width:9px;}
+  .table-wrap::-webkit-scrollbar-track{background:var(--paper);}
+  .table-wrap::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
+
+  @media (max-width:760px){
+    .summary-strip{grid-template-columns:repeat(2,1fr);}
+    .filter-group{min-width:100%;}
+    header{padding:14px 16px;}
+    main{padding:14px 16px 40px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="mark">INW</span>
+    <div>
+      <h1>Inward Vehicle Dashboard</h1>
+      <div class="sub" id="lastSync">connecting to sheet…</div>
+    </div>
+  </div>
+  <div class="status-cluster">
+    <span><span class="pulse-dot"></span>Live</span>
+    <button id="refreshBtn" onclick="loadData()">Refresh now</button>
+  </div>
+</header>
+
+<main>
+
+  <div class="error-banner" id="errorBanner"></div>
+
+  <div class="summary-strip">
+    <div class="summary-cell">
+      <div class="label">Vehicles Inward</div>
+      <div class="value" id="sumVehicles">—</div>
+    </div>
+    <div class="summary-cell">
+      <div class="label">Total Invoice Qty</div>
+      <div class="value" id="sumInvoiceQty">—</div>
+    </div>
+    <div class="summary-cell">
+      <div class="label">Total GRN Qty</div>
+      <div class="value" id="sumGrnQty">—</div>
+    </div>
+    <div class="summary-cell complete">
+      <div class="label">GRN Complete</div>
+      <div class="value" id="sumComplete">—</div>
+      <div class="subvalue" id="sumCompletePct">—</div>
+    </div>
+    <div class="summary-cell pending">
+      <div class="label">GRN Pending</div>
+      <div class="value" id="sumPending">—</div>
+      <div class="subvalue" id="sumPendingPct">—</div>
+    </div>
+    <div class="summary-cell critical">
+      <div class="label">Pending 4+ Days</div>
+      <div class="value" id="sumCritical">—</div>
+      <div class="subvalue">needs attention</div>
+    </div>
+  </div>
+
+  <div class="ageing-strip" id="ageingStrip">
+    <div class="ageing-chip" data-bucket="0-1" onclick="setAgeingFilter('0-1')">
+      <div class="alabel">Pending · 0-1 day</div>
+      <div class="acount" id="age01">—</div>
+    </div>
+    <div class="ageing-chip" data-bucket="2-3" onclick="setAgeingFilter('2-3')">
+      <div class="alabel">Pending · 2-3 days</div>
+      <div class="acount" id="age23">—</div>
+    </div>
+    <div class="ageing-chip" data-bucket="4+" onclick="setAgeingFilter('4+')">
+      <div class="alabel">Pending · 4+ days</div>
+      <div class="acount" id="age4plus">—</div>
+    </div>
+  </div>
+
+  <div class="view-tabs">
+    <button class="active" data-view="all" onclick="setView('all')">All records</button>
+    <button data-view="pending" onclick="setView('pending')">Pending only</button>
+    <button data-view="complete" onclick="setView('complete')">Complete only</button>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label for="fMonth">Month</label>
+      <select id="fMonth" onchange="applyFilters()"><option value="">All months</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="fClient">Client Name</label>
+      <select id="fClient" onchange="applyFilters()"><option value="">All clients</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="fDate">Received Date</label>
+      <select id="fDate" onchange="applyFilters()"><option value="">All dates</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="fSearch">Search (Invoice / Vehicle No)</label>
+      <input id="fSearch" type="text" placeholder="Search…" oninput="applyFilters()">
+    </div>
+    <button class="filter-clear" onclick="clearFilters()">Clear filters</button>
+  </div>
+
+  <div class="table-wrap">
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th data-key="receivedDate">Received Date</th>
+          <th data-key="clientName">Client</th>
+          <th data-key="vendorName">Vendor</th>
+          <th data-key="invoiceNo">Invoice No</th>
+          <th data-key="invoiceQty">Invoice Qty</th>
+          <th data-key="skuCount">SKUs</th>
+          <th data-key="vehicleNo">Vehicle No</th>
+          <th data-key="transporterName">Transporter</th>
+          <th data-key="grnNo">GRN No</th>
+          <th data-key="grnQty">GRN Qty</th>
+          <th data-key="grnDate">GRN Date</th>
+          <th data-key="status">Status</th>
+          <th data-key="ageingDays">Ageing (days)</th>
+          <th data-key="month">Month</th>
+        </tr>
+      </thead>
+      <tbody id="bodyRows">
+        <tr class="empty-row"><td colspan="14">Loading data from Google Sheet…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-footer">
+    <span id="rowCount">0 records shown</span>
+    <span>Auto-refresh every 60s · Source: Google Sheet (via Apps Script)</span>
+  </div>
+
+</main>
+
+<script>
+/* ====================================================================
+   CONFIG — apna Apps Script Web App URL yahan daalein
+   ==================================================================== */
+const APPSCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE";
+
+let ALL_ROWS = [];
+let VIEW_FILTER = 'all';
+let AGEING_FILTER = null;
+let SORT_KEY = null;
+let SORT_DIR = 1;
+
+async function loadData(){
+  const btn = document.getElementById('refreshBtn');
+  const errBanner = document.getElementById('errorBanner');
+  btn.disabled = true;
+  btn.textContent = 'Syncing…';
+  errBanner.classList.remove('show');
+
+  try{
+    if(!APPSCRIPT_URL || APPSCRIPT_URL.includes('PASTE_YOUR')){
+      throw new Error('Apps Script URL abhi set nahi hua hai. index.html me APPSCRIPT_URL variable update karein.');
+    }
+    const bust = (APPSCRIPT_URL.includes('?') ? '&' : '?') + 'cb=' + Date.now();
+    const res = await fetch(APPSCRIPT_URL + bust, {cache:'no-store'});
+    if(!res.ok) throw new Error('Fetch failed (HTTP ' + res.status + ')');
+    const json = await res.json();
+
+    if(json.error) throw new Error(json.error);
+
+    ALL_ROWS = json.results || [];
+    document.getElementById('lastSync').textContent = 'Last synced: ' + (json.generatedAt || '—');
+
+    populateFilterOptions();
+    applyFilters();
+
+  } catch(err){
+    errBanner.textContent = '⚠ ' + err.message;
+    errBanner.classList.add('show');
+    document.getElementById('bodyRows').innerHTML =
+      '<tr class="empty-row"><td colspan="14">Data load nahi ho saka. Upar di gayi error check karein.</td></tr>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Refresh now';
+  }
+}
+
+function uniqueSorted(arr, key){
+  const set = new Set();
+  arr.forEach(r => { if(r[key]) set.add(r[key]); });
+  return Array.from(set).sort();
+}
+
+function parseDateForSort(str){
+  const parts = String(str).split(/[\/\-\.]/).map(p => p.trim());
+  if(parts.length === 3 && parts[0].length <= 2 && parts[2].length === 4){
+    const d = parseInt(parts[0],10), m = parseInt(parts[1],10), y = parseInt(parts[2],10);
+    return new Date(y, m-1, d).getTime();
+  }
+  const fallback = new Date(str);
+  return isNaN(fallback.getTime()) ? 0 : fallback.getTime();
+}
+
+function populateFilterOptions(){
+  fillSelect('fMonth', uniqueSorted(ALL_ROWS, 'month'));
+  fillSelect('fClient', uniqueSorted(ALL_ROWS, 'clientName'));
+  const dates = uniqueSorted(ALL_ROWS, 'receivedDate').sort((a,b) => parseDateForSort(a) - parseDateForSort(b));
+  fillSelect('fDate', dates);
+}
+
+function fillSelect(id, values){
+  const el = document.getElementById(id);
+  const current = el.value;
+  const placeholder = el.options[0];
+  el.innerHTML = '';
+  el.appendChild(placeholder);
+  values.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    el.appendChild(opt);
+  });
+  if(values.includes(current)) el.value = current;
+}
+
+function setView(view){
+  VIEW_FILTER = view;
+  document.querySelectorAll('.view-tabs button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  applyFilters();
+}
+
+function setAgeingFilter(bucket){
+  AGEING_FILTER = (AGEING_FILTER === bucket) ? null : bucket;
+  document.querySelectorAll('.ageing-chip').forEach(c => c.classList.toggle('active', c.dataset.bucket === AGEING_FILTER));
+  if(AGEING_FILTER){ VIEW_FILTER = 'pending'; document.querySelectorAll('.view-tabs button').forEach(b => b.classList.toggle('active', b.dataset.view === 'pending')); }
+  applyFilters();
+}
+
+function ageingBucket(days){
+  if(days === null || days === undefined) return null;
+  if(days <= 1) return '0-1';
+  if(days <= 3) return '2-3';
+  return '4+';
+}
+
+function applyFilters(){
+  const fMonth = document.getElementById('fMonth').value;
+  const fClient = document.getElementById('fClient').value;
+  const fDate = document.getElementById('fDate').value;
+  const fSearch = document.getElementById('fSearch').value.trim().toLowerCase();
+
+  let filtered = ALL_ROWS.filter(r => {
+    if(fMonth && r.month !== fMonth) return false;
+    if(fClient && r.clientName !== fClient) return false;
+    if(fDate && r.receivedDate !== fDate) return false;
+    if(fSearch && !(r.invoiceNo||'').toLowerCase().includes(fSearch) && !(r.vehicleNo||'').toLowerCase().includes(fSearch)) return false;
+    if(VIEW_FILTER === 'pending' && r.status !== 'Pending') return false;
+    if(VIEW_FILTER === 'complete' && r.status !== 'Complete') return false;
+    if(AGEING_FILTER && ageingBucket(r.ageingDays) !== AGEING_FILTER) return false;
+    return true;
+  });
+
+  if(SORT_KEY){
+    filtered.sort((a,b) => {
+      let va = a[SORT_KEY], vb = b[SORT_KEY];
+      if(SORT_KEY === 'receivedDate' || SORT_KEY === 'grnDate'){
+        va = parseDateForSort(va); vb = parseDateForSort(vb);
+      } else if(typeof va === 'string' && !isNaN(parseFloat(va)) === false){
+        va = (va||'').toLowerCase(); vb = (vb||'').toLowerCase();
+      }
+      if(va === null || va === undefined || va === '') return 1;
+      if(vb === null || vb === undefined || vb === '') return -1;
+      if(va < vb) return -1 * SORT_DIR;
+      if(va > vb) return 1 * SORT_DIR;
+      return 0;
+    });
+  }
+
+  renderTable(filtered);
+  renderSummary(ALL_ROWS, filtered);
+}
+
+function renderSummary(all, filtered){
+  const vehicles = filtered.length;
+  const invoiceQty = filtered.reduce((s,r) => s + (r.invoiceQty||0), 0);
+  const grnQty = filtered.reduce((s,r) => s + (r.grnQty||0), 0);
+  const complete = filtered.filter(r => r.status === 'Complete').length;
+  const pending = filtered.filter(r => r.status === 'Pending').length;
+  const critical = filtered.filter(r => r.status === 'Pending' && ageingBucket(r.ageingDays) === '4+').length;
+
+  document.getElementById('sumVehicles').textContent = vehicles;
+  document.getElementById('sumInvoiceQty').textContent = invoiceQty.toLocaleString('en-IN');
+  document.getElementById('sumGrnQty').textContent = grnQty.toLocaleString('en-IN');
+  document.getElementById('sumComplete').textContent = complete;
+  document.getElementById('sumCompletePct').textContent = vehicles ? Math.round(complete/vehicles*100) + '% of total' : '—';
+  document.getElementById('sumPending').textContent = pending;
+  document.getElementById('sumPendingPct').textContent = vehicles ? Math.round(pending/vehicles*100) + '% of total' : '—';
+  document.getElementById('sumCritical').textContent = critical;
+
+  const pendingRows = filtered.filter(r => r.status === 'Pending');
+  document.getElementById('age01').textContent = pendingRows.filter(r => ageingBucket(r.ageingDays) === '0-1').length;
+  document.getElementById('age23').textContent = pendingRows.filter(r => ageingBucket(r.ageingDays) === '2-3').length;
+  document.getElementById('age4plus').textContent = pendingRows.filter(r => ageingBucket(r.ageingDays) === '4+').length;
+}
+
+function renderTable(rows){
+  const body = document.getElementById('bodyRows');
+  if(rows.length === 0){
+    body.innerHTML = '<tr class="empty-row"><td colspan="14">Filters ke hisaab se koi record nahi mila.</td></tr>';
+  } else {
+    body.innerHTML = rows.map(r => {
+      const statusBadge = r.status === 'Complete'
+        ? '<span class="badge complete">Complete</span>'
+        : '<span class="badge pending">Pending</span>';
+      const ageingDisplay = r.ageingDays === null || r.ageingDays === undefined
+        ? '—'
+        : (ageingBucket(r.ageingDays) === '4+'
+            ? `<span class="badge ageing-critical">${r.ageingDays}d</span>`
+            : r.ageingDays + 'd');
+
+      return `<tr>
+        <td>${escapeHtml(r.receivedDate)}</td>
+        <td>${escapeHtml(r.clientName)}</td>
+        <td>${escapeHtml(r.vendorName)}</td>
+        <td>${escapeHtml(r.invoiceNo)}</td>
+        <td>${r.invoiceQty ?? ''}</td>
+        <td>${r.skuCount ?? ''}</td>
+        <td>${escapeHtml(r.vehicleNo)}</td>
+        <td>${escapeHtml(r.transporterName)}</td>
+        <td>${escapeHtml(r.grnNo)}</td>
+        <td>${r.grnQty || ''}</td>
+        <td>${escapeHtml(r.grnDate)}</td>
+        <td>${statusBadge}</td>
+        <td>${ageingDisplay}</td>
+        <td>${escapeHtml(r.month)}</td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('rowCount').textContent = rows.length + ' records shown (of ' + ALL_ROWS.length + ' total)';
+}
+
+function clearFilters(){
+  document.getElementById('fMonth').value = '';
+  document.getElementById('fClient').value = '';
+  document.getElementById('fDate').value = '';
+  document.getElementById('fSearch').value = '';
+  VIEW_FILTER = 'all';
+  AGEING_FILTER = null;
+  document.querySelectorAll('.view-tabs button').forEach(b => b.classList.toggle('active', b.dataset.view === 'all'));
+  document.querySelectorAll('.ageing-chip').forEach(c => c.classList.remove('active'));
+  applyFilters();
+}
+
+function escapeHtml(str){
+  return String(str ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+document.querySelectorAll('thead th[data-key]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    if(SORT_KEY === key){ SORT_DIR *= -1; } else { SORT_KEY = key; SORT_DIR = 1; }
+    applyFilters();
+  });
+});
+
+loadData();
+setInterval(loadData, 60000);
+</script>
+
+</body>
+</html>
