@@ -85,7 +85,7 @@
   /* ---------- Summary strip ---------- */
   .summary-strip{
     display:grid;
-    grid-template-columns:repeat(7,1fr);
+    grid-template-columns:repeat(9,1fr);
     gap:1px;
     background:var(--line);
     border:1px solid var(--line);
@@ -252,6 +252,16 @@
       <div class="value" id="sumCritical">—</div>
       <div class="subvalue">needs attention</div>
     </div>
+    <div class="summary-cell complete">
+      <div class="label">GRN Done — Today</div>
+      <div class="value" id="sumGrnToday">—</div>
+      <div class="subvalue" id="sumGrnTodayDate">—</div>
+    </div>
+    <div class="summary-cell complete">
+      <div class="label">GRN Done — Yesterday</div>
+      <div class="value" id="sumGrnYesterday">—</div>
+      <div class="subvalue" id="sumGrnYesterdayDate">—</div>
+    </div>
   </div>
 
   <div class="ageing-strip" id="ageingStrip">
@@ -333,7 +343,7 @@
 /* ====================================================================
    CONFIG — apna Apps Script Web App URL yahan daalein
    ==================================================================== */
-const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbwPokn3e5GYt3NVRgiNdGK9shgxkxRlSUAjyE-2XyY4sKw4RCZ0AOfeNW5uB7zrFq-Ywg/exec";
+const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbykIk3kuWIUzTEsDYH2PPmq1c8VC7v5WjUS_8kJbYoXLfLnStye6sE9al6tpd98MWUfPA/exec";
 
 let ALL_ROWS = [];
 let VIEW_FILTER = 'all';
@@ -493,6 +503,28 @@ function renderSummary(all, filtered){
   document.getElementById('age01').textContent = pendingRows.filter(r => ageingBucket(r.ageingDays) === '0-1').length;
   document.getElementById('age23').textContent = pendingRows.filter(r => ageingBucket(r.ageingDays) === '2-3').length;
   document.getElementById('age4plus').textContent = pendingRows.filter(r => ageingBucket(r.ageingDays) === '4+').length;
+
+  // GRN Done — Today / Yesterday (GRN Date column ke aadhar par, filtered rows me se)
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  const todayStr = formatDateDDMMYYYY(today);
+  const yesterdayStr = formatDateDDMMYYYY(yesterday);
+
+  const grnToday = filtered.filter(r => r.grnDate === todayStr).length;
+  const grnYesterday = filtered.filter(r => r.grnDate === yesterdayStr).length;
+
+  document.getElementById('sumGrnToday').textContent = grnToday;
+  document.getElementById('sumGrnTodayDate').textContent = todayStr;
+  document.getElementById('sumGrnYesterday').textContent = grnYesterday;
+  document.getElementById('sumGrnYesterdayDate').textContent = yesterdayStr;
+}
+
+function formatDateDDMMYYYY(d){
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return dd + '-' + mm + '-' + yyyy;
 }
 
 function renderTable(rows){
