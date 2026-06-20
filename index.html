@@ -85,7 +85,7 @@
   /* ---------- Summary strip ---------- */
   .summary-strip{
     display:grid;
-    grid-template-columns:repeat(6,1fr);
+    grid-template-columns:repeat(7,1fr);
     gap:1px;
     background:var(--line);
     border:1px solid var(--line);
@@ -230,6 +230,10 @@
       <div class="value" id="sumInvoiceQty">—</div>
     </div>
     <div class="summary-cell">
+      <div class="label">Total Boxes (Invoice)</div>
+      <div class="value" id="sumBoxes">—</div>
+    </div>
+    <div class="summary-cell">
       <div class="label">Total GRN Qty</div>
       <div class="value" id="sumGrnQty">—</div>
     </div>
@@ -300,6 +304,7 @@
           <th data-key="vendorName">Vendor</th>
           <th data-key="invoiceNo">Invoice No</th>
           <th data-key="invoiceQty">Invoice Qty</th>
+          <th data-key="boxesInvoice">Boxes (Invoice)</th>
           <th data-key="skuCount">SKUs</th>
           <th data-key="vehicleNo">Vehicle No</th>
           <th data-key="transporterName">Transporter</th>
@@ -312,7 +317,7 @@
         </tr>
       </thead>
       <tbody id="bodyRows">
-        <tr class="empty-row"><td colspan="14">Loading data from Google Sheet…</td></tr>
+        <tr class="empty-row"><td colspan="15">Loading data from Google Sheet…</td></tr>
       </tbody>
     </table>
   </div>
@@ -328,7 +333,7 @@
 /* ====================================================================
    CONFIG — apna Apps Script Web App URL yahan daalein
    ==================================================================== */
-const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhAD1xuGFTgRvw8t7BZGoUF-f6O5pREtMEGB5Spu9odaMja7by52AFXwoQ5PBRTY5Ptg/exec";
+const APPSCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE";
 
 let ALL_ROWS = [];
 let VIEW_FILTER = 'all';
@@ -364,7 +369,7 @@ async function loadData(){
     errBanner.textContent = '⚠ ' + err.message;
     errBanner.classList.add('show');
     document.getElementById('bodyRows').innerHTML =
-      '<tr class="empty-row"><td colspan="14">Data load nahi ho saka. Upar di gayi error check karein.</td></tr>';
+      '<tr class="empty-row"><td colspan="15">Data load nahi ho saka. Upar di gayi error check karein.</td></tr>';
   } finally {
     btn.disabled = false;
     btn.textContent = 'Refresh now';
@@ -468,6 +473,7 @@ function applyFilters(){
 function renderSummary(all, filtered){
   const vehicles = filtered.length;
   const invoiceQty = filtered.reduce((s,r) => s + (r.invoiceQty||0), 0);
+  const totalBoxes = filtered.reduce((s,r) => s + (r.boxesInvoice||0), 0);
   const grnQty = filtered.reduce((s,r) => s + (r.grnQty||0), 0);
   const complete = filtered.filter(r => r.status === 'Complete').length;
   const pending = filtered.filter(r => r.status === 'Pending').length;
@@ -475,6 +481,7 @@ function renderSummary(all, filtered){
 
   document.getElementById('sumVehicles').textContent = vehicles;
   document.getElementById('sumInvoiceQty').textContent = invoiceQty.toLocaleString('en-IN');
+  document.getElementById('sumBoxes').textContent = totalBoxes.toLocaleString('en-IN');
   document.getElementById('sumGrnQty').textContent = grnQty.toLocaleString('en-IN');
   document.getElementById('sumComplete').textContent = complete;
   document.getElementById('sumCompletePct').textContent = vehicles ? Math.round(complete/vehicles*100) + '% of total' : '—';
@@ -491,7 +498,7 @@ function renderSummary(all, filtered){
 function renderTable(rows){
   const body = document.getElementById('bodyRows');
   if(rows.length === 0){
-    body.innerHTML = '<tr class="empty-row"><td colspan="14">Filters ke hisaab se koi record nahi mila.</td></tr>';
+    body.innerHTML = '<tr class="empty-row"><td colspan="15">Filters ke hisaab se koi record nahi mila.</td></tr>';
   } else {
     body.innerHTML = rows.map(r => {
       const statusBadge = r.status === 'Complete'
@@ -509,6 +516,7 @@ function renderTable(rows){
         <td>${escapeHtml(r.vendorName)}</td>
         <td>${escapeHtml(r.invoiceNo)}</td>
         <td>${r.invoiceQty ?? ''}</td>
+        <td>${r.boxesInvoice ?? ''}</td>
         <td>${r.skuCount ?? ''}</td>
         <td>${escapeHtml(r.vehicleNo)}</td>
         <td>${escapeHtml(r.transporterName)}</td>
